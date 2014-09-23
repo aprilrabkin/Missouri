@@ -6,38 +6,43 @@ require 'csv'
 
 class Scraper 
 	attr_reader :ids, :table, :rows
+	def initialize
+		@rows = []
+	end
 
 	def scrape_each_county_page
-		#i = 1	
-		#while i < 118 do 
+		i = 1	
+		while i < 117 do 
 			agent = Mechanize.new
 			page = agent.get("http://www.sos.mo.gov/elections/goVoteMissouri/pickupmail.aspx")
 			form = agent.page.forms[1]
-			form.field_with(:name=>"electioncounty").options[0].select
+			form.field_with(:name=>"electioncounty").options[i].click
 			@table = form.submit.parser.css('#resultset').children[0]
-			binding.pry
+			i += 1
 			parse_county
-			binding.pry
-
-#			i += 1
-#			sleep (10)
-#		end
+		end
 	end
 
 	def parse_county
-		name = @table.children[0].text
-		phone = @table.children[6].text
-		if @table.children[10].text != "Website: "
-			website = @table.children[10].text
+		if @table.children[0].text.include?("County County")
+			names = @table.children[0].text.gsub!("County County", "County, County").split(",") #works for everything except Kansas and2 St Louis
+			county = names[0]
+			office = names[1]
+		else 
+			county = @table.children[0].text
 		end
-		@rows << [name, phone, website + "\n"]
-		binding.pry
+		phone = @table.children[6].text
+		if @table.children.attribute('href').text != ""
+			website = @table.children.attribute('href').text
+		end
+		@rows << [county, office, phone, website ? website : nil].flatten
 	end
 
 	def write_into_CSV_file
-binding.pry
 		CSV.open("spreadsheet.csv", "wb") do |csv|
-			csv << @rows
+			@rows.map do |line|
+				csv << line
+			end
 		end
 	end
 
